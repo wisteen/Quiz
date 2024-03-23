@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Uploader</title>
+<style>
+    /* Some basic styling */
+    .quiz-container {
+        margin-bottom: 20px;
+    }
+    .correct-answer {
+        display: none;
+    }
+</style>
+</head>
+<body>
+<div id="quiz-list"></div>
+<button onclick="addQuiz()">Add Quiz</button>
+<button onclick="saveQuiz()">Save</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@openai/gpt-3.5-browser@1.0.0-beta.1" defer></script>
+<script>
+    let quizCounter = 0;
+    let openai;
+
+    function loadOpenAI() {
+        openai = new OpenAI('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');
+    }
+
+    function addQuiz() {
+        quizCounter++;
+        const quizContainer = document.createElement('div');
+        quizContainer.classList.add('quiz-container');
+        quizContainer.innerHTML = `
+            <h3>Quiz ${quizCounter}</h3>
+            <div>
+                <label>Question:</label>
+                <input type="text" id="question-${quizCounter}">
+            </div>
+            <div>
+                <label>Options:</label><br>
+                <input type="text" id="options-${quizCounter}-a" placeholder="Option A">
+                <input type="text" id="options-${quizCounter}-b" placeholder="Option B">
+                <input type="text" id="options-${quizCounter}-c" placeholder="Option C">
+                <input type="text" id="options-${quizCounter}-d" placeholder="Option D">
+                <input type="text" id="options-${quizCounter}-e" placeholder="Option E">
+            </div>
+            <div class="correct-answer" id="correct-answer-${quizCounter}">
+                <label>Correct Answer:</label>
+                <span>Loading...</span>
+            </div>
+        `;
+        document.getElementById('quiz-list').appendChild(quizContainer);
+
+        // Generate correct answer asynchronously
+        generateCorrectAnswer(quizCounter);
+    }
+
+    async function generateCorrectAnswer(quizNumber) {
+        const questionInput = document.getElementById(`question-${quizNumber}`);
+        const optionsInputs = [
+            document.getElementById(`options-${quizNumber}-a`),
+            document.getElementById(`options-${quizNumber}-b`),
+            document.getElementById(`options-${quizNumber}-c`),
+            document.getElementById(`options-${quizNumber}-d`),
+            document.getElementById(`options-${quizNumber}-e`)
+        ];
+
+        // Check if all inputs are valid
+        if (!questionInput || optionsInputs.some(input => !input)) {
+            console.error('Invalid input elements');
+            return;
+        }
+
+        const question = questionInput.value;
+        const options = optionsInputs.map(input => input.value);
+
+        const response = await openai.complete({
+            engine: 'davinci-codex',
+            prompt: `Q: ${question}\nOptions: ${options.join(', ')}`,
+            maxTokens: 1,
+            n: 1,
+            stop: ['\n']
+        });
+        const correctAnswer = response.data.choices[0].text.trim();
+
+        const correctAnswerContainer = document.getElementById(`correct-answer-${quizNumber}`);
+        correctAnswerContainer.innerHTML = `
+            <label>Correct Answer:</label>
+            <span>${correctAnswer}</span>
+            <input type="hidden" id="correct-answer-value-${quizNumber}" value="${correctAnswer}">
+        `;
+    }
+
+    function saveQuiz() {
+        const quizzes = [];
+        for (let i = 1; i <= quizCounter; i++) {
+            const question = document.getElementById(`question-${i}`).value;
+            const options = {
+                a: document.getElementById(`options-${i}-a`).value,
+                b: document.getElementById(`options-${i}-b`).value,
+                c: document.getElementById(`options-${i}-c`).value,
+                d: document.getElementById(`options-${i}-d`).value,
+                e: document.getElementById(`options-${i}-e`).value
+            };
+            const correctAnswer = document.getElementById(`correct-answer-value-${i}`).value;
+            quizzes.push({ question, options, correctAnswer });
+        }
+        const jsonData = JSON.stringify(quizzes, null, 2);
+        console.log(jsonData); // You can do anything with the JSON data here
+        alert("Quiz data saved in JSON format. Open console to see.");
+    }
+
+    // Load OpenAI once the page is loaded
+    window.onload = loadOpenAI;
+</script>
+</body>
+  </html>
+    
